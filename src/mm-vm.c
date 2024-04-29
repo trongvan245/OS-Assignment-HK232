@@ -105,11 +105,19 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
   /* TODO INCREASE THE LIMIT
    * inc_vma_limit(caller, vmaid, inc_sz)
    */
-  inc_vma_limit(caller, vmaid, inc_sz);
+  if (inc_vma_limit(caller, vmaid, inc_sz) != 0)
+    return -1;
 
   /*Successful increase limit */
   caller->mm->symrgtbl[rgid].rg_start = old_sbrk;
   caller->mm->symrgtbl[rgid].rg_end = old_sbrk + size;
+
+  // collect the remain region
+  if (old_sbrk + size < cur_vma->vm_end)
+  {
+    struct vm_rg_struct *remain_rg = init_vm_rg(old_sbrk + size, cur_vma->vm_end);
+    enlist_vm_freerg_list(caller->mm, remain_rg);
+  }
 
   *alloc_addr = old_sbrk;
 
