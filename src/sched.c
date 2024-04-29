@@ -54,30 +54,38 @@ struct pcb_t* get_mlq_proc(void) {
    */
 
   pthread_mutex_lock(&queue_lock);
-   int i= 0;
-  for (;i < MAX_PRIO; i = (i + 1)) {
+  static int i= 0;
+  int c= 0;
+  for (;; i = (i + 1)%MAX_PRIO) {
     if (slot_available[i] == 0) {
       slot_available[i] = MAX_PRIO - i;
+      c= 0;
       continue;
     }
-    if (empty(&mlq_ready_queue[i])) continue;
+    if (empty(&mlq_ready_queue[i])) {
+      ++c;
+      if (c == MAX_PRIO) break;
+      continue;
+    }
+    c= 0;
     --slot_available[i];
     proc = dequeue(&mlq_ready_queue[i]);
     break;
   }
-  if (proc == NULL) {
-    //run again ffs
-    for (;i < MAX_PRIO; i = (i + 1)) {
-      if (slot_available[i] == 0) {
-        slot_available[i] = MAX_PRIO - i;
-        continue;
-      }
-      if (empty(&mlq_ready_queue[i])) continue;
-      --slot_available[i];
-      proc = dequeue(&mlq_ready_queue[i]);
-      break;
-    }
-  }
+  // if (proc == NULL) {
+    
+  //   //run again ffs
+  //   for (;i < MAX_PRIO; i = (i + 1)) {
+  //     if (slot_available[i] == 0) {
+  //       slot_available[i] = MAX_PRIO - i;
+  //       continue;
+  //     }
+  //     if (empty(&mlq_ready_queue[i])) continue;
+  //     --slot_available[i];
+  //     proc = dequeue(&mlq_ready_queue[i]);
+  //     break;
+  //   }
+  // }
   pthread_mutex_unlock(&queue_lock);
   return proc;
 }
