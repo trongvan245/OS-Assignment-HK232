@@ -13,7 +13,7 @@ static pthread_mutex_t queue_lock;
 
 #ifdef MLQ_SCHED
 static struct queue_t mlq_ready_queue[MAX_PRIO];
-static int slot_available[MAX_PRIO];
+static int slot[MAX_PRIO];
 #endif
 
 int queue_empty(void) {
@@ -31,7 +31,7 @@ void init_scheduler(void) {
 
   for (i = 0; i < MAX_PRIO; i++) {
     mlq_ready_queue[i].size = 0;
-    slot_available[i] = MAX_PRIO - i;
+    slot[i] = MAX_PRIO - i;
   }
 #endif
   ready_queue.size = 0;
@@ -53,41 +53,70 @@ struct pcb_t* get_mlq_proc(void) {
    * Remember to use lock to protect the queue.
    */
 
-  pthread_mutex_lock(&queue_lock);
-  static int i= 0;
-  int c= 0;
-  for (;; i = (i + 1)%MAX_PRIO) {
-    if (slot_available[i] == 0) {
-      slot_available[i] = MAX_PRIO - i;
-      c= 0;
-      continue;
-    }
-    if (empty(&mlq_ready_queue[i])) {
-      ++c;
-      if (c == MAX_PRIO) break;
-      continue;
-    }
-    c= 0;
-    --slot_available[i];
-    proc = dequeue(&mlq_ready_queue[i]);
-    break;
-  }
-  // if (proc == NULL) {
-    
-  //   //run again ffs
-  //   for (;i < MAX_PRIO; i = (i + 1)) {
-  //     if (slot_available[i] == 0) {
-  //       slot_available[i] = MAX_PRIO - i;
-  //       continue;
-  //     }
-  //     if (empty(&mlq_ready_queue[i])) continue;
-  //     --slot_available[i];
-  //     proc = dequeue(&mlq_ready_queue[i]);
-  //     break;
-  //   }
-  // }
-  pthread_mutex_unlock(&queue_lock);
-  return proc;
+  static int curr = 0;
+	if (slot[curr] > 0) {
+		if (!empty(&mlq_ready_queue[curr])) {
+			pthread_mutex_lock(&queue_lock);
+			proc = dequeue(&mlq_ready_queue[curr]);
+			slot[curr]--;
+			pthread_mutex_unlock(&queue_lock);
+		}
+		else {
+			int temp = (curr + 1) % MAX_PRIO;
+			while (temp != curr) {
+				if (!empty(&mlq_ready_queue[temp]) && slot[temp] > 0) {
+
+					// If queue[temp] found, take process from it but doesn't change curr, because curr still has slot
+
+					pthread_mutex_lock(&queue_lock);
+					proc = dequeue(&mlq_ready_queue[temp]);
+					slot[temp]--;
+					pthread_mutex_unlock(&queue_lock);
+					break;
+				}
+				else {
+					pthread_mutex_lock(&queue_lock);
+					temp = (temp + 1) % MAX_PRIO;
+					pthread_mutex_unlock(&queue_lock);
+				}
+			}
+		}
+	}
+	else {
+		// Reset the slot of queue[curr]
+
+		slot[curr] = MAX_PRIO - curr;
+
+		int temp = (curr + 1) % MAX_PRIO;
+		while (temp != curr) {
+			if (!empty(&mlq_ready_queue[temp]) && slot[temp] > 0) {
+
+				// If queue[temp] found, update the curr to temp as queue[curr] currently out of slot and cannot be used until new cycle
+
+				pthread_mutex_lock(&queue_lock);
+				curr = temp;
+				proc = dequeue(&mlq_ready_queue[curr]);
+				slot[curr]--;
+				pthread_mutex_unlock(&queue_lock);
+				break;
+			}
+			else {
+				pthread_mutex_lock(&queue_lock);
+				temp = (temp + 1) % MAX_PRIO;
+				pthread_mutex_unlock(&queue_lock);
+			}
+		}
+
+		// If only queue[curr] have processes and slot[curr] > 0, take proc from queue[curr]
+
+		if (!empty(&mlq_ready_queue[curr])) {
+			pthread_mutex_lock(&queue_lock);
+			proc = dequeue(&mlq_ready_queue[curr]);
+			slot[curr]--;
+			pthread_mutex_unlock(&queue_lock);
+		}
+	}
+	return proc;
 }
 
 void put_mlq_proc(struct pcb_t* proc) {
