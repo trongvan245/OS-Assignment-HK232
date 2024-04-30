@@ -413,8 +413,22 @@ struct vm_rg_struct* get_vm_area_node_at_brk(struct pcb_t *caller, int vmaid, in
 int validate_overlap_vm_area(struct pcb_t *caller, int vmaid, int vmastart, int vmaend)
 {
   //struct vm_area_struct *vma = caller->mm->mmap;
+  struct vm_area_struct *vma = caller->mm->mmap;
 
   /* TODO validate the planned memory area is not overlapped */
+  while (vma != NULL) {
+    // the same vm_id means the same vm_area_struct
+    // vm_area_struct has size 0 if ma->vm_start == vma->vm_end
+    if ((vma->vm_id != vmaid ) && (vma->vm_start != vma->vm_end))
+    {
+      if (OVERLAP(vma->vm_start, vma->vm_end, vmastart, vmaend))
+        return -1;
+
+      if (INCLUDE(vma->vm_start, vma->vm_end, vmastart, vmaend))
+        return -1;
+    }
+    vma = vma->vm_next;
+  }
 
   return 0;
 }
