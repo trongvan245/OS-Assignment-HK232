@@ -10,26 +10,26 @@ int empty(struct queue_t *q) {
 
 void enqueue(struct queue_t *q, struct pcb_t *proc) {
   /* TODO: put a new process to queue [q] */
-
+  #ifdef MLQ_SCHED
   if (q != NULL && q->size < MAX_QUEUE_SIZE) {
       q->proc[q->size] = proc;
       ++q->size;
   }
-  
+  #else
+  for (int i = 0; i < q->size; ++i) {
+    if (q->proc[i]->priority <= proc->priority) {
+      for (int j = q->size - 1; j >= i; --j)
+         q->proc[j + 1] = q->proc[j];
 
-  //   for (int i = 0; i < q->size; ++i) {
-  //     if (q->proc[i]->priority <= proc->priority) {
-  //       for (int j = q->size - 1; j >= i; --j)
-  //         q->proc[j + 1] = q->proc[j];
+         q->proc[i] = proc;
+         ++q->size;
+         return;
+     }
+  }
 
-  //       q->proc[i] = proc;
-  //       ++q->size;
-  //       return;
-  //     }
-  //   }
-
-  //   q->proc[q->size] = proc;
-  //   ++q->size;
+  q->proc[q->size] = proc;
+  ++q->size;
+  #endif
 }
 
 struct pcb_t *dequeue(struct queue_t *q) {
