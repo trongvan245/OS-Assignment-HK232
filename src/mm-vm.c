@@ -9,7 +9,24 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <stdio.h>
+#include <stdint.h>
 static pthread_mutex_t mmvm_lock = PTHREAD_MUTEX_INITIALIZER;
+
+int get_last_13_bits_int(uint32_t input) {
+  // Bitmask để lấy 13 bit cuối cùng
+  const uint32_t mask = (1 << 13) - 1;
+
+  // Bitwise AND để lấy 13 bit cuối cùng
+  uint32_t result = input & mask;
+
+  // Chuyển đổi uint32_t sang int
+  int int_result = (int) result;
+
+  // Trả về kết quả
+  return int_result;
+}
+
+
 /*enlist_vm_freerg_list - add new rg to freerg_list
  *@mm: memory region
  *@rg_elmt: new region
@@ -231,7 +248,8 @@ int pg_getpage(struct mm_struct *mm, int pgn, int *fpn, struct pcb_t *caller)
     enlist_pgn_node(&caller->mm->fifo_pgn,pgn);
   }
 
-  *fpn = PAGING_FPN(pte);
+  //*fpn = PAGING_FPN(pte);
+  *fpn = get_last_13_bits_int(pte);
 
   return 0;
 }
