@@ -160,11 +160,11 @@ int MEMPHY_dump(struct memphy_struct * mp)
     /*TODO dump memphy contnt mp->storage 
      *     for tracing the memory content
      */
-    for(int i = 0; i < mp->maxsz; ++i)
+    for(int i = 0; i < mp->maxsz / 4; ++i)
     {
-         if(mp->storage[i] != 0)
+         if(mp->storage[i * 4] + mp->storage[i * 4 + 1] + mp->storage[i * 4 + 2] + mp->storage[i * 4 + 3] != 0)
          {
-            printf("%08x: %08x\n", i * 4, mp->storage[i]);
+            printf("%08x: %02x%02x%02x%02x\n", i * 4, mp->storage[i * 4], mp->storage[i * 4 + 1], mp->storage[i * 4 + 2], mp->storage[i * 4 + 3]);
          }
     }
     return 0;
