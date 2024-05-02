@@ -157,13 +157,31 @@ int alloc_pages_range(struct pcb_t *caller, int req_pgnum, struct framephy_struc
     { // ERROR CODE of obtaining somes but not enough frames
       // MEMPHY_put_freefp to take back free frames
       // delete all framephy_struct in newfp_list
-      while (newfp_str != NULL) {
-        MEMPHY_put_freefp(caller->mram, newfp_str->fpn);
-        struct framephy_struct *remain_fp_str = newfp_str->fp_next;
-        free(newfp_str);
-        newfp_str = remain_fp_str;
+      int vicpgn, swpfpn;
+      if (find_victim_page(caller->mm, &vicpgn) == -1 || MEMPHY_get_freefp(caller->active_mswp, &swpfpn) == -1) 
+      {
+        while (newfp_str != NULL) 
+        {
+          MEMPHY_put_freefp(caller->mram, newfp_str->fpn);
+          struct framephy_struct *remain_fp_str = newfp_str->fp_next;
+          free(newfp_str);
+          newfp_str = remain_fp_str;
+        }
+        return -1;
       }
-      return -1;
+      // swap to get free frame
+      uint32_t vicpte = caller->mm->pgd[vicpgn];
+      int vicfpn = PAGING_FPN(vicpte);
+      __swap_cp_page(caller->mram, vicfpn, caller->active_mswp, swpfpn);
+      pte_set_swap(&caller->mm->pgd[vicpgn], 0, swpfpn);
+
+      // set up new free frame
+      struct framephy_struct *newfp = malloc(sizeof(struct framephy_struct));
+      newfp->fpn = vicfpn;
+      newfp->owner = caller->mm;
+      newfp->fp_next = newfp_str;
+      newfp_str = newfp;
+
     }
   }
 
