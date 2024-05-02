@@ -9,7 +9,7 @@
 #include <pthread.h>
 #include <stdlib.h>
 #include <stdio.h>
-
+static pthread_mutex_t mmvm_lock = PTHREAD_MUTEX_INITIALIZER;
 /*enlist_vm_freerg_list - add new rg to freerg_list
  *@mm: memory region
  *@rg_elmt: new region
@@ -141,17 +141,19 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
  */
 int __free(struct pcb_t *caller, int vmaid, int rgid)
 {
-  struct vm_rg_struct* rgnode;
-
+  pthread_mutex_lock(&mmvm_lock);
   if(rgid < 0 || rgid > PAGING_MAX_SYMTBL_SZ)
+  {
+    pthread_mutex_unlock(&mmvm_lock);
     return -1;
-
+  }
+  struct vm_rg_struct* rgnode;
   /* TODO: Manage the collect freed region to freerg_list */
   rgnode = &caller->mm->symrgtbl[rgid];
 
   /*enlist the obsoleted memory region */
   enlist_vm_freerg_list(caller->mm, rgnode);
-
+  pthread_mutex_unlock(&mmvm_lock);
   return 0;
 }
 
@@ -290,15 +292,18 @@ int pg_setval(struct mm_struct *mm, int addr, BYTE value, struct pcb_t *caller)
  */
 int __read(struct pcb_t *caller, int vmaid, int rgid, int offset, BYTE *data)
 {
+  pthread_mutex_lock(&mmvm_lock);
   struct vm_rg_struct *currg = get_symrg_byid(caller->mm, rgid);
 
   struct vm_area_struct *cur_vma = get_vma_by_num(caller->mm, vmaid);
 
   if(currg == NULL || cur_vma == NULL) /* Invalid memory identify */
-	  return -1;
-
+	{
+    pthread_mutex_unlock(&mmvm_lock);
+    return -1;
+  }
   pg_getval(caller->mm, currg->rg_start + offset, data, caller);
-
+  pthread_mutex_unlock(&mmvm_lock);
   return 0;
 }
 
@@ -335,15 +340,19 @@ int pgread(
  */
 int __write(struct pcb_t *caller, int vmaid, int rgid, int offset, BYTE value)
 {
+  pthread_mutex_lock(&mmvm_lock);
   struct vm_rg_struct *currg = get_symrg_byid(caller->mm, rgid);
 
   struct vm_area_struct *cur_vma = get_vma_by_num(caller->mm, vmaid);
   
-  if(currg == NULL || cur_vma == NULL) /* Invalid memory identify */
-	  return -1;
+  if (currg == NULL || cur_vma == NULL) /* Invalid memory identify */
+  {
+    pthread_mutex_unlock(&mmvm_lock);
+    return -1;
+  }
 
   pg_setval(caller->mm, currg->rg_start + offset, value, caller);
-
+  pthread_mutex_unlock(&mmvm_lock);
   return 0;
 }
 
