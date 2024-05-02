@@ -6,6 +6,7 @@
 
 #include "string.h"
 #include "mm.h"
+#include <pthread.h>
 #include <stdlib.h>
 #include <stdio.h>
 
@@ -92,6 +93,10 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
     return 0;
   }
 
+  // lock
+  static pthread_mutex_t lock;
+  
+  pthread_mutex_init(&lock,NULL);
   /* TODO get_free_vmrg_area FAILED handle the region management (Fig.6)*/
 
   /*Attempt to increate limit to get space */
@@ -105,8 +110,11 @@ int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr
   /* TODO INCREASE THE LIMIT
    * inc_vma_limit(caller, vmaid, inc_sz)
    */
+  pthread_mutex_lock(&lock);
   if (inc_vma_limit(caller, vmaid, inc_sz) != 0)
     return -1;
+
+  pthread_mutex_unlock(&lock);
 
   /*Successful increase limit */
   caller->mm->symrgtbl[rgid].rg_start = old_sbrk;
