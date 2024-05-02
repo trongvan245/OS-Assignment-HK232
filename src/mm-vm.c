@@ -425,11 +425,17 @@ int validate_overlap_vm_area(struct pcb_t *caller, int vmaid, int vmastart, int 
     // vm_area_struct has size 0 if ma->vm_start == vma->vm_end
     if ((vma->vm_id != vmaid ) && (vma->vm_start != vma->vm_end))
     {
-      if (OVERLAP(vma->vm_start, vma->vm_end, vmastart, vmaend))
+      // OVERLAP
+      if ((int)((vmaend - 1 - vma->vm_start) * (vma->vm_end - 1 - vmastart)) >= 0)
+      {
         return -1;
-
-      if (INCLUDE(vma->vm_start, vma->vm_end, vmastart, vmaend))
+      }
+      
+      // INCLUDE
+      if ((int)((vmastart - vma->vm_start) * (vma->vm_end - vmaend)) >= 0)
+      {
         return -1;
+      }
     }
     vma = vma->vm_next;
   }
