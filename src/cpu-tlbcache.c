@@ -42,23 +42,23 @@ void write_to_cache(struct memphy_struct *memphy, int process_id, int page_numbe
 // Function to read integers from bytes one byte at a time
 void read_from_cache(struct memphy_struct* memphy, int index, int *process_id, int *page_number, int *frame_number) {
     BYTE value;
-    TLBMEMPHY_read(&memphy, index, &value);
+    TLBMEMPHY_read(memphy, index, &value);
     *process_id = value << 24;
-    TLBMEMPHY_read(&memphy, index + 1, &value);
+    TLBMEMPHY_read(memphy, index + 1, &value);
     *process_id |= value << 16;
-    TLBMEMPHY_read(&memphy, index + 2, &value);
+    TLBMEMPHY_read(memphy, index + 2, &value);
     *process_id |= value << 8;
-    TLBMEMPHY_read(&memphy, index + 3, &value);
+    TLBMEMPHY_read(memphy, index + 3, &value);
     *process_id |= value;
     
-    TLBMEMPHY_read(&memphy, index + 4, &value);
+    TLBMEMPHY_read(memphy, index + 4, &value);
     *page_number = value << 8;
-    TLBMEMPHY_read(&memphy, index + 5, &value);
+    TLBMEMPHY_read(memphy, index + 5, &value);
     *page_number |= value;
     
-    TLBMEMPHY_read(&memphy, index + 6, &value);
+    TLBMEMPHY_read(memphy, index + 6, &value);
     *frame_number = value << 8;
-    TLBMEMPHY_read(&memphy, index + 7, &value);
+    TLBMEMPHY_read(memphy, index + 7, &value);
     *frame_number |= value;
 }
 

@@ -113,7 +113,9 @@ int init_pte(uint32_t *pte,
 int __alloc(struct pcb_t *caller, int vmaid, int rgid, int size, int *alloc_addr);
 int __free(struct pcb_t *caller, int vmaid, int rgid);
 int __read(struct pcb_t *caller, int vmaid, int rgid, int offset, BYTE *data);
+int __read_tlb(struct pcb_t *caller, int vmaid, int rgid, int offset, BYTE *data,int* frnum);
 int __write(struct pcb_t *caller, int vmaid, int rgid, int offset, BYTE value);
+int __write_tlb(struct pcb_t *caller, int vmaid, int rgid, int offset, BYTE value,int* frnum);
 int init_mm(struct mm_struct *mm, struct pcb_t *caller);
 
 /* CPUTLB prototypes */

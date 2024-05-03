@@ -58,7 +58,7 @@ int get_pgnum(struct pcb_t *proc, uint32_t source, uint32_t offset)
   int addr = currg->rg_start + offset;
   return PAGING_PGN(addr);
 }
-int get_frnum(){};
+
 /*tlbread - CPU TLB-based read a region memory
  *@proc: Process executing the instruction
  *@source: index of source register
@@ -92,8 +92,8 @@ int tlbread(struct pcb_t * proc, uint32_t source,
     destination = (uint32_t) cfrnum;
     return 0;
   }
-  int val = __read(proc, 0, source, offset, &data);
-  int cache_frnum = get_frnum();
+  int cache_frnum = 0;
+  int val = __read_tlb(proc, 0, source, offset, &data,&cache_frnum);
   tlb_cache_write(proc,proc->pid,pgnum,cache_frnum);
   destination = (uint32_t) data;
   /* TODO update TLB CACHED with frame num of recent accessing page(s)*/
@@ -132,8 +132,9 @@ int tlbwrite(struct pcb_t * proc, BYTE data,
   {
     return 0;
   }
-  val = __write(proc, 0, destination, offset, data);
-  int cache_frnum = get_frnum();
+  int cache_frnum = 0;
+  val = __write_tlb(proc, 0, destination, offset, data,&cache_frnum);
+  
   tlb_cache_write(proc,proc->pid,pgnum,cache_frnum);
   /* TODO update TLB CACHED with frame num of recent accessing page(s)*/
   /* by using tlb_cache_read()/tlb_cache_write()*/

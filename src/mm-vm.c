@@ -276,6 +276,22 @@ int pg_getval(struct mm_struct *mm, int addr, BYTE *data, struct pcb_t *caller)
 
   return 0;
 }
+int pg_getval_tlb(struct mm_struct *mm, int addr, BYTE *data, struct pcb_t *caller,int* frnum)
+{
+  int pgn = PAGING_PGN(addr);
+  int off = PAGING_OFFST(addr);
+  int fpn;
+
+  /* Get the page to MEMRAM, swap from MEMSWAP if needed */
+  if(pg_getpage(mm, pgn, &fpn, caller) != 0) 
+    return -1; /* invalid page access */
+  *frnum = fpn;
+  int phyaddr = (fpn << PAGING_ADDR_FPN_LOBIT) + off;
+
+  MEMPHY_read(caller->mram,phyaddr, data);
+
+  return 0;
+}
 
 /*pg_setval - write value to given offset
  *@mm: memory region
@@ -295,6 +311,22 @@ int pg_setval(struct mm_struct *mm, int addr, BYTE value, struct pcb_t *caller)
 
   int phyaddr = (fpn << PAGING_ADDR_FPN_LOBIT) + off;
 
+  MEMPHY_write(caller->mram,phyaddr, value);
+
+   return 0;
+}
+int pg_setval_tlb(struct mm_struct *mm, int addr, BYTE value, struct pcb_t *caller,int* frnum)
+{
+  int pgn = PAGING_PGN(addr);
+  int off = PAGING_OFFST(addr);
+  int fpn;
+
+  /* Get the page to MEMRAM, swap from MEMSWAP if needed */
+  if(pg_getpage(mm, pgn, &fpn, caller) != 0) 
+    return -1; /* invalid page access */
+
+  int phyaddr = (fpn << PAGING_ADDR_FPN_LOBIT) + off;
+  *frnum = fpn;
   MEMPHY_write(caller->mram,phyaddr, value);
 
    return 0;
@@ -321,6 +353,22 @@ int __read(struct pcb_t *caller, int vmaid, int rgid, int offset, BYTE *data)
     return -1;
   }
   pg_getval(caller->mm, currg->rg_start + offset, data, caller);
+  pthread_mutex_unlock(&mmvm_lock);
+  return 0;
+}
+int __read_tlb(struct pcb_t *caller, int vmaid, int rgid, int offset, BYTE *data,int* frnum)
+{
+  pthread_mutex_lock(&mmvm_lock);
+  struct vm_rg_struct *currg = get_symrg_byid(caller->mm, rgid);
+
+  struct vm_area_struct *cur_vma = get_vma_by_num(caller->mm, vmaid);
+
+  if(currg == NULL || cur_vma == NULL) /* Invalid memory identify */
+	{
+    pthread_mutex_unlock(&mmvm_lock);
+    return -1;
+  }
+  pg_getval_tlb(caller->mm, currg->rg_start + offset, data, caller,frnum);
   pthread_mutex_unlock(&mmvm_lock);
   return 0;
 }
@@ -373,7 +421,23 @@ int __write(struct pcb_t *caller, int vmaid, int rgid, int offset, BYTE value)
   pthread_mutex_unlock(&mmvm_lock);
   return 0;
 }
+int __write_tlb(struct pcb_t *caller, int vmaid, int rgid, int offset, BYTE value,int* frnum)
+{
+  pthread_mutex_lock(&mmvm_lock);
+  struct vm_rg_struct *currg = get_symrg_byid(caller->mm, rgid);
 
+  struct vm_area_struct *cur_vma = get_vma_by_num(caller->mm, vmaid);
+  
+  if (currg == NULL || cur_vma == NULL) /* Invalid memory identify */
+  {
+    pthread_mutex_unlock(&mmvm_lock);
+    return -1;
+  }
+
+  pg_setval_tlb(caller->mm, currg->rg_start + offset, value, caller,frnum);
+  pthread_mutex_unlock(&mmvm_lock);
+  return 0;
+}
 /*pgwrite - PAGING-based write a region memory */
 int pgwrite(
 		struct pcb_t * proc, // Process executing the instruction
